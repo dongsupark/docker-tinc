@@ -1,0 +1,2 @@
+# more info: https://www.tinc-vpn.org/documentation/tincd.8
+TINC_CMD_ARGS: --debug=3

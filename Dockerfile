@@ -3,6 +3,10 @@ FROM debian:unstable
 # Tinc version
 ARG TINC_VERSION=1.1pre17
 
+ENV CONTAINER_SERVICE_DIR=/service
+ENV CONTAINER_STATE_DIR=/run/state
+ENV TINC_CMD_ARGS="--debug=3"
+
 # Download, build and install Tinc
 RUN apt-get -y update \
     && LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \

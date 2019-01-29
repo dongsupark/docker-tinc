@@ -13,6 +13,12 @@ if [ ! -e "$FIRST_START_DONE" ]; then
     touch ${CONTAINER_SERVICE_DIR}/tinc/data/hosts/${peer}
   done
 
+  echo "#!/bin/bash" >> ${CONTAINER_SERVICE_DIR}/tinc/data/tinc-up
+  echo "ip link set tap0 up" >> ${CONTAINER_SERVICE_DIR}/tinc/data/tinc-up
+  echo "ip addr add 10.1.1.1/24 dev tap0" >> ${CONTAINER_SERVICE_DIR}/tinc/data/tinc-up
+
+  chmod +x ${CONTAINER_SERVICE_DIR}/tinc/data/tinc-up
+
   TINC_HOSTNAME="nodemain"
   tinc --config ${CONTAINER_SERVICE_DIR}/tinc/data init $TINC_HOSTNAME
 

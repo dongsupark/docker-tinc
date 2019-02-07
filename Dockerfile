@@ -10,9 +10,16 @@ ENV TINC_CMD_ARGS="--debug=3"
 # Download, build and install Tinc
 RUN apt-get -y update \
     && LC_ALL=C DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    apt-utils \
+    awscli \
+    bind9-host \
     ca-certificates \
     curl \
     gcc \
+    iproute2 \
+    iputils-ping \
+    jq \
+    less \
     libssl1.1 \
     libssl-dev \
     liblzo2-2 \
@@ -23,6 +30,8 @@ RUN apt-get -y update \
     libreadline-dev \
     make \
     nano \
+    net-tools \
+    openssh-server \
     pkg-config \
     procps \
     vim \
@@ -37,10 +46,17 @@ RUN apt-get -y update \
     && cd - \
     && mkdir -p /usr/local/var/run/ \
     && rm -f tinc.tar.gz \
-    && rm -rf /container/tinc-sources \
-    && apt-get remove -y --purge --auto-remove ca-certificates curl gcc  \
-    libssl-dev liblzo2-dev libncurses5-dev libreadline-dev make pkg-config zlib1g-dev
+    && rm -rf /container/tinc-sources
 
+WORKDIR /root
+
+RUN sed -i 's/#Port 22/Port 2222/g' /etc/ssh/sshd_config
+RUN update-rc.d ssh enable
+
+RUN mkdir --parents /root/.ssh
+
+ADD id_rsa.pub /root/.ssh/authorized_keys
+ADD aws /root/.aws
 
 ADD service /service
 ADD environment /environment
@@ -49,4 +65,4 @@ RUN /service/tinc/startup.sh
 
 EXPOSE 655/tcp 655/udp
 
-ENTRYPOINT /service/tinc/process.sh
+ENTRYPOINT /usr/sbin/service ssh start && /service/tinc/process.sh

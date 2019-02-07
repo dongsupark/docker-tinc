@@ -2,7 +2,7 @@
 
 PEERS=${PEERS:-nodepeer}
 
-readarray cmds < environment/default.startup.conf
+readarray cmds < /environment/default.startup.conf
 
 FIRST_START_DONE="${CONTAINER_STATE_DIR}/docker-tinc-first-start-done"
 # container first start

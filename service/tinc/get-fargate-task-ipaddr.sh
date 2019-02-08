@@ -15,13 +15,30 @@ if ! command -v jq >& /dev/null; then
   exit 1
 fi
 
+OPTS="$1"
+PEER_MODE=0
+
+if [[ $# -ge 1 ]]; then
+  if [[ "$OPTS" == "-h" ]] || [[ "$OPTS" == "--help" ]]; then
+    echo "USAGE: $0 [options]"
+    echo "  -h, --help: print help message"
+    echo "  -p, --get-peer: get IP address of peer mode instead of main node"
+    exit 1
+  fi
+
+  if [[ "$OPTS" == "-p" ]] || [[ "$OPTS" == "--get-peer" ]]; then
+    echo "turning on peer mode"
+    PEER_MODE=1
+  fi
+fi
+
 INPUT_PRIVATE_IPADDR=$(ip address | grep -A2 eth0: | grep inet | tr -s ' ' | cut -d' ' -f3 | cut -d'/' -f1)
 
 CLUSTER_NAME=$(aws ecs list-clusters | jq -r '.clusterArns | .[]')
 
 tasks=()
 while IFS=  read -r line; do
-	tasks+=( "$line" )
+  tasks+=( "$line" )
 done < <( aws ecs list-tasks --cluster="$CLUSTER_NAME" | jq -r '.taskArns | .[] ')
 
 # Now ${tasks[@]} includes ARN of each task.
@@ -70,19 +87,47 @@ done < <( aws ecs list-tasks --cluster="$CLUSTER_NAME" | jq -r '.taskArns | .[] 
 #                }
 #            ],
 
+privateAddress=""
+privateAddressMain=""
+privateAddressPeer=""
+
 for task in "${tasks[@]}" ; do
   privateAddress=$(aws ecs describe-tasks --tasks="$task" --cluster="$CLUSTER_NAME" | jq -r '.tasks | .[] | .containers | .[] | .networkInterfaces | .[] | .privateIpv4Address')
   #echo "private address = $privateAddress"
 
   if [ "${INPUT_PRIVATE_IPADDR}" != "${privateAddress}" ]; then
-    continue
+    if [ "${PEER_MODE}" == "0" ]; then
+      privateAddressPeer=${privateAddress}
+    else
+      privateAddressMain=${privateAddress}
+    fi
+  else
+    if [ "${PEER_MODE}" == "0" ]; then
+      privateAddressMain=${privateAddress}
+    else
+      privateAddressPeer=${privateAddress}
+    fi
   fi
-
-  publicAddress=$(aws ec2 describe-network-interfaces | jq -r '.NetworkInterfaces | .[] | select(.PrivateIpAddress=="'"${privateAddress}"'") | .PrivateIpAddresses | .[] | .Association.PublicIp ')
-
-  echo "$publicAddress"
-  exit 0
 done
 
-echo "A matching public IP address not found."
-exit 1
+if [ "${privateAddressMain}" == "" ]; then
+  echo "A matching public IP address for main node not found."
+  exit 1
+fi
+
+if [ "${privateAddressPeer}" == "" ]; then
+  echo "A matching public IP address for peer node not found."
+  exit 1
+fi
+
+
+if [ "${PEER_MODE}" == "0" ]; then
+  privateAddress=${privateAddressMain}
+else
+  privateAddress=${privateAddressPeer}
+fi
+
+publicAddress=$(aws ec2 describe-network-interfaces | jq -r '.NetworkInterfaces | .[] | select(.PrivateIpAddress=="'"${privateAddress}"'") | .PrivateIpAddresses | .[] | .Association.PublicIp ')
+
+echo "$publicAddress"
+exit 0
